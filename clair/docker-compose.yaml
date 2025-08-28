@@ -1,0 +1,34 @@
+version: "3.9"
+services:
+  postgres:
+    image: postgres:13
+    container_name: clair_postgres
+    environment:
+      POSTGRES_USER: clair
+      POSTGRES_PASSWORD: clair
+      POSTGRES_DB: clair
+    volumes:
+      - clair_db:/var/lib/postgresql/data
+    networks:
+      - clair_net
+
+  clair:
+    build:
+      context: ./clair
+      dockerfile: Dockerfile
+    container_name: clair_service
+    ports:
+      - "6060:6060"   # HTTP API
+      - "6061:6061"   # Introspection
+    depends_on:
+      - postgres
+    networks:
+      - clair_net
+    restart: unless-stopped
+
+networks:
+  clair_net:
+    driver: bridge
+
+volumes:
+  clair_db:

@@ -1,0 +1,12 @@
+version: "3.9"
+services:
+  swagger:
+    build:
+      context: ./swagger
+      dockerfile: Dockerfile
+    container_name: swagger_ui
+    ports:
+      - "8080:8080"
+    environment:
+      SWAGGER_JSON: /usr/share/nginx/html/swagger.json
+    restart: unless-stopped
