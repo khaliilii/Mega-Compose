@@ -1,0 +1,48 @@
+version: "3.9"
+
+services:
+  rocketchat:
+    image: rocket.chat:latest
+    container_name: rocketchat
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - ROOT_URL=http://localhost:3000
+      - MONGO_URL=mongodb://mongo:27017/rocketchat
+      - MONGO_OPLOG_URL=mongodb://mongo:27017/local
+    depends_on:
+      - mongo
+    networks:
+      - rocketchat_net
+
+  mongo:
+    image: mongo:5
+    container_name: rocketchat_mongo
+    restart: unless-stopped
+    command: mongod --oplogSize 128 --replSet rs0 --storageEngine=wiredTiger
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - rocketchat_net
+
+  mongo-init-replica:
+    image: mongo:5
+    container_name: rocketchat_mongo_init
+    depends_on:
+      - mongo
+    entrypoint: >
+      bash -c "
+        sleep 10 &&
+        mongo mongo:27017 --eval 'rs.initiate({_id: \"rs0\", members: [{ _id: 0, host: \"mongo:27017\" }]})'
+      "
+    networks:
+      - rocketchat_net
+
+volumes:
+  mongo_data:
+
+networks:
+  rocketchat_net:
+    driver: bridge

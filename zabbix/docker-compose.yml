@@ -1,0 +1,70 @@
+version: "3.9"
+
+services:
+  zabbix-mysql:
+    image: mysql:8.0
+    container_name: zabbix-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: zabbix
+      MYSQL_USER: zabbix
+      MYSQL_PASSWORD: zabbixpass
+      MYSQL_ROOT_PASSWORD: rootpass
+    volumes:
+      - zabbix_mysql_data:/var/lib/mysql
+    networks:
+      - authcenter_zabbix_net
+
+  zabbix-server:
+    image: zabbix/zabbix-server-mysql:latest
+    container_name: zabbix-server
+    restart: unless-stopped
+    depends_on:
+      - zabbix-mysql
+    environment:
+      DB_SERVER_HOST: zabbix-mysql
+      MYSQL_DATABASE: zabbix
+      MYSQL_USER: zabbix
+      MYSQL_PASSWORD: zabbixpass
+    ports:
+      - "10051:10051"  # Zabbix server port
+    networks:
+      - authcenter_zabbix_net
+
+  zabbix-frontend:
+    image: zabbix/zabbix-web-nginx-mysql:latest
+    container_name: zabbix-frontend
+    restart: unless-stopped
+    depends_on:
+      - zabbix-server
+      - zabbix-mysql
+    environment:
+      DB_SERVER_HOST: zabbix-mysql
+      MYSQL_DATABASE: zabbix
+      MYSQL_USER: zabbix
+      MYSQL_PASSWORD: zabbixpass
+      ZBX_SERVER_HOST: zabbix-server
+      PHP_TZ: Europe/Berlin
+    ports:
+      - "8083:8080"  # وب UI Zabbix
+    networks:
+      - authcenter_zabbix_net
+
+  zabbix-agent:
+    image: zabbix/zabbix-agent:latest
+    container_name: zabbix-agent
+    restart: unless-stopped
+    depends_on:
+      - zabbix-server
+    environment:
+      ZBX_SERVER_HOST: zabbix-server
+      HOSTNAME: zabbix-agent
+    networks:
+      - authcenter_zabbix_net
+
+volumes:
+  zabbix_mysql_data:
+
+networks:
+  authcenter_zabbix_net:
+    driver: bridge

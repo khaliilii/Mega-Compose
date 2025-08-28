@@ -1,0 +1,143 @@
+name: CI/CD Partial Rollback
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+env:
+  DOCKER_REGISTRY: ghcr.io/USERNAME
+  IMAGE_TAG: ${{ github.sha }}
+  BACKUP_PATH: /tmp/backups
+  DEPLOY_DIR: /home/prod/docker-compose
+
+jobs:
+
+  lint-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.3
+          extensions: mbstring, pdo_mysql, pdo_pgsql, redis
+
+      - name: Install dependencies
+        run: composer install --no-progress --no-interaction
+
+      - name: Run PHPUnit tests
+        run: vendor/bin/phpunit --coverage-text
+
+  build-and-push:
+    runs-on: ubuntu-latest
+    needs: lint-test
+    strategy:
+      matrix:
+        service: [phpnginx, phpapache, backendcore, authcenter, valkey, memcached, mailpit, kopia]
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Log in to Docker registry
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push Docker images
+        run: |
+          docker build -t $DOCKER_REGISTRY/${{ matrix.service }}:$IMAGE_TAG ./${{ matrix.service }}
+          docker push $DOCKER_REGISTRY/${{ matrix.service }}:$IMAGE_TAG
+
+  backup-production:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    steps:
+      - name: SSH to Production Server for Service Backups
+        uses: appleboy/ssh-action@v0.1.9
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          script: |
+            mkdir -p $BACKUP_PATH
+            TIMESTAMP=$(date +%Y%m%d%H%M)
+
+            declare -A services=( 
+              ["mysql"]="docker exec authcenter_mysql sh -c 'exec mysqldump --all-databases -uroot -p$MYSQL_ROOT_PASSWORD' > $BACKUP_PATH/mysql_$TIMESTAMP.sql" 
+              ["postgresql"]="docker exec authcenter_postgresql sh -c 'pg_dumpall -U root' > $BACKUP_PATH/postgres_$TIMESTAMP.sql"
+              ["redis"]="docker exec authcenter_redis redis-cli SAVE && docker cp authcenter_redis:/data/dump.rdb $BACKUP_PATH/redis_$TIMESTAMP.rdb"
+              ["minio"]="docker exec minio mc mirror --overwrite myminio/ $BACKUP_PATH/minio_$TIMESTAMP"
+              ["keycloak"]="docker exec keycloak /opt/keycloak/bin/kc.sh export --dir $BACKUP_PATH/keycloak_$TIMESTAMP"
+            )
+
+            for svc in "${!services[@]}"; do
+              echo "Backing up $svc..."
+              eval "${services[$svc]}"
+            done
+
+  deploy-production:
+    runs-on: ubuntu-latest
+    needs: backup-production
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: SSH to Production Server for Partial Deploy
+        uses: appleboy/ssh-action@v0.1.9
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          script: |
+            set -e
+            cd $DEPLOY_DIR
+
+            echo "Pulling latest Docker images..."
+            docker-compose pull
+
+            services=(phpnginx phpapache backendcore authcenter valkey memcached mailpit kopia)
+            declare -A rollback_commands
+
+            # Define rollback commands for each service
+            rollback_commands=( 
+              ["mysql"]="cat $BACKUP_PATH/mysql_$(ls -t $BACKUP_PATH/mysql_*.sql | head -1 | xargs -n1 basename | sed 's/mysql_//;s/.sql//').sql | docker exec -i authcenter_mysql sh -c 'mysql -uroot -p$MYSQL_ROOT_PASSWORD'"
+              ["postgresql"]="cat $BACKUP_PATH/postgres_$(ls -t $BACKUP_PATH/postgres_*.sql | head -1 | xargs -n1 basename | sed 's/postgres_//;s/.sql//').sql | docker exec -i authcenter_postgresql sh -c 'psql -U root'"
+              ["redis"]="docker cp $BACKUP_PATH/redis_$(ls -t $BACKUP_PATH/redis_*.rdb | head -1 | xargs -n1 basename) authcenter_redis:/data/dump.rdb && docker restart authcenter_redis"
+            )
+
+            for svc in "${services[@]}"; do
+              echo "Deploying $svc..."
+              if ! docker-compose up -d $svc; then
+                echo "❌ $svc failed! Rolling back..."
+                if [[ -n "${rollback_commands[$svc]}" ]]; then
+                  eval "${rollback_commands[$svc]}"
+                fi
+                docker-compose restart $svc
+                echo "✅ $svc rolled back successfully"
+              fi
+            done
+
+            echo "Healthcheck for all stateful services..."
+            stateful=(authcenter_mysql authcenter_postgresql authcenter_redis minio keycloak)
+            for s in "${stateful[@]}"; do
+              (while true; do
+                 status=$(docker inspect --format='{{.State.Health.Status}}' $s)
+                 if [ "$status" == "healthy" ] || [[ "$s" =~ minio|keycloak ]]; then break; fi
+                 echo "Waiting for $s..."
+                 sleep 5
+               done) &
+            done
+            wait
+            echo "✅ All stateful services healthy"
+
+      - name: Slack Notification
+        uses: slackapi/slack-github-action@v1.23.0
+        with:
+          channel-id: ${{ secrets.SLACK_CHANNEL }}
+          slack-token: ${{ secrets.SLACK_TOKEN }}
+          text: |
+            ${{ job.status == 'success' && '✅ Partial deploy successful!' || '⚠️ Partial rollback executed due to service failure.' }}

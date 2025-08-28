@@ -1,0 +1,12 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # نمونه برای مانیتور کردن Docker containerها
+  - job_name: 'docker'
+    static_configs:
+      - targets: ['docker.for.mac.localhost:9323'] # آدرس Node Exporter / cAdvisor

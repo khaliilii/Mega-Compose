@@ -1,0 +1,850 @@
+version: "3.9"
+services:
+  
+  phpnginx:
+    build:
+      context: ./phpnginx
+      dockerfile: Dockerfile
+    image: php:8.3-nginx
+    container_name: php83nginx
+    ports:
+      - 8000:80
+    networks:
+      - authcenter_mysql_net
+      - authcenter_redis_net
+      - authcenter_postgresql_net
+    volumes:
+      - ./php:/var/www/html
+      - ./docker/php.ini:/etc/php/8.3/apache2/php.ini
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      postgresql:
+        condition: service_healthy
+    environment:
+      - VIRTUAL_HOST=php.localhost
+      - VIRTUAL_PORT=80
+      - VIRTUAL_PROTO=http
+  
+  phpapache:
+    build:
+      context: ./phpapache
+      dockerfile: Dockerfile
+    image: php:8.2-apache
+    container_name: php_82
+    ports:
+      - 8000:80
+    networks:
+      - authcenter_mysql_net
+      - authcenter_redis_net
+      - authcenter_postgresql_net
+    volumes:
+      - ./php:/var/www/html
+      - ./docker/php.ini:/etc/php/8.2/apache2/php.ini
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      postgresql:
+        condition: service_healthy
+    environment:
+      - VIRTUAL_HOST=php.localhost
+      - VIRTUAL_PORT=80
+      - VIRTUAL_PROTO=http
+  
+  mysql:
+    build:
+      context: ./mysql
+      dockerfile: Dockerfile
+    image: authcenter-mysql:latest
+    container_name: authcenter_mysql
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: my_database
+      MYSQL_USER: root
+      MYSQL_PASSWORD: 987654321
+    volumes:
+      - authcenter_mysql_data:/var/lib/mysql
+    networks:
+      - authcenter_mysql_net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p987654321"]
+      interval: 10s
+      retries: 5
+      timeout: 5s
+      start_period: 10s
+  
+  postgresql:
+    build:
+      context: ./postgresql
+      dockerfile: Dockerfile
+    image: authcenter-postgresql:latest
+    container_name: authcenter_postgresql
+    restart: unless-stopped
+    shm_size: 128mb
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: 987654321
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - authcenter_postgresql_data:/var/lib/postgresql/data
+    networks:
+      - authcenter_postgresql_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U root"]
+      interval: 10s
+      retries: 5
+  
+  rabbitmq:
+    build:
+      context: ./rabbitmq
+      dockerfile: Dockerfile
+    container_name: authcenter_rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: user
+      RABBITMQ_DEFAULT_PASS: pass123
+    volumes:
+      - authcenter_rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - authcenter_redis_net
+      - authcenter_mysql_net
+      - authcenter_postgresql_net
+
+  zookeeper:
+    image: wurstmeister/zookeeper:3.8.1
+    container_name: authcenter_zookeeper
+    ports:
+      - "2181:2181"
+    networks:
+      - authcenter_kafka_net
+    restart: unless-stopped
+    volumes:
+      - zookeeper_data:/data
+
+  kafka:
+    build:
+      context: ./kafka
+      dockerfile: Dockerfile
+    container_name: authcenter_kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://authcenter_kafka:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    depends_on:
+      - zookeeper
+    networks:
+      - authcenter_kafka_net
+    restart: unless-stopped
+    volumes:
+      - kafka_data:/kafka_data
+
+  redis:
+    build:
+      context: ./redis
+      dockerfile: Dockerfile
+    image: authcenter-redis:latest
+    container_name: authcenter_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - authcenter_redis_data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    networks:
+      - authcenter_redis_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      retries: 5
+  
+  valkey:
+    build:
+      context: ./valkey
+      dockerfile: Dockerfile
+    image: valkey/valkey:latest
+    container_name: authcenter_valkey
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./valkey-data:/data
+    networks:
+      - authcenter_valkey_net
+  memcached:
+    image: memcached:latest
+    container_name: memcached
+    ports:
+      - "11211:11211"
+    command: memcached -m 128 -vv   # اختیاری: محدودیت RAM و لاگ
+    networks:
+      - authcenter_memcached_net
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: authcenter_phpmyadmin
+    restart: always
+  
+    environment:
+      PMA_HOST: authcenter_mysql
+      PMA_USER: root
+      PMA_PASSWORD: 987654321
+    ports:
+      - "8080:80"
+    networks:
+      - authcenter_mysql_net
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+      - ./phpmyadmin/config.user.inc.php:/etc/phpmyadmin/config.user.inc.php
+      - ./phpmyadmin/config.inc.php:/etc/phpmyadmin/config.inc.php
+      - ./phpmyadmin/config-db.php:/etc/phpmyadmin/config-db.php
+      - ./phpmyadmin/config-db.inc.php:/etc/phpmyadmin/config-db.inc.php
+  
+  backendcore:
+    build:
+      context: ./appbackend
+      dockerfile: Dockerfile
+    image: corebackend:latest
+    container_name: corebackend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    environment:
+      DB_HOST: authcenter_mysql
+      DB_USER: root
+      DB_PASSWORD: 987654321
+      REDIS_HOST: authcenter_redis
+      POSTGRES_HOST: authcenter_postgresql
+    networks:
+      - authcenter_mysql_net
+      - authcenter_redis_net
+      - authcenter_postgresql_net
+    volumes:
+      - ./app:/var/http/
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      postgresql:
+        condition: service_healthy
+  
+  authcenter:
+    build:
+      context: ./authcenter
+      dockerfile: Dockerfile
+    image: authcenter:latest
+    container_name: authcenter
+    restart: unless-stopped
+    ports:
+      - "80:8000"
+    networks:
+      - authcenter_mysql_net
+      - authcenter_redis_net
+      - authcenter_postgresql_net
+    volumes:
+      - ./authcenter/app:/app 
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      postgresql:
+        condition: service_healthy
+  
+  mongodb:
+    image: mongodb/mongodb-community-server:6.0-ubi8
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=user
+      - MONGO_INITDB_ROOT_PASSWORD=pass
+    volumes:
+      - type: bind
+        source: ./mongodb/data
+        target: /data/db
+    networks:
+      - authcenter_mongodb_net
+    ports:
+      - "27017:27017"
+
+  mailpit:
+    build:
+      context: ./mailpit   # پوشه‌ای که Dockerfile رو گذاشتی
+      dockerfile: Dockerfile
+    image: custom-mailpit:latest
+    container_name: mailpit
+    restart: unless-stopped
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # Web UI
+    networks:
+      - mailpit_net
+    volumes:
+      - ./mailpit/data:/data  # اگر بخوای دیتای ایمیل‌ها رو نگه داری
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+      - xpack.security.enabled=false
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - authcenter_es_data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    networks:
+      - authcenter_elk_net
+      - authcenter_mysql_net
+      - authcenter_redis_net
+      - authcenter_postgresql_net
+      - authcenter_valkey_net
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.15.0
+    container_name: logstash
+    depends_on:
+      - elasticsearch
+    volumes:
+      - ./logstash/pipeline:/usr/share/logstash/pipeline
+    ports:
+      - "5044:5044"
+      - "5000:5000/tcp"
+      - "5000:5000/udp"
+      - "9600:9600"
+    networks:
+      - authcenter_elk_net
+      - authcenter_mysql_net
+      - authcenter_redis_net
+      - authcenter_postgresql_net
+      - authcenter_valkey_net
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.15.0
+    container_name: kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    depends_on:
+      - elasticsearch
+    ports:
+      - "5601:5601"
+    networks:
+      - authcenter_elk_net
+      - authcenter_mysql_net
+      - authcenter_redis_net
+      - authcenter_postgresql_net
+      - authcenter_valkey_net
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.15.0
+    container_name: filebeat
+    user: root
+    volumes:
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - logstash
+    networks:
+      - authcenter_elk_net
+      - authcenter_mysql_net
+      - authcenter_redis_net
+      - authcenter_postgresql_net
+      - authcenter_valkey_net 
+
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    restart: always
+    ports:
+      - "9000:9000"   # Portainer Web UI
+      - "9443:9443"   # HTTPS UI
+    volumes:
+      - authcenter_portainer_data:/data
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - authcenter_elk_net
+      - authcenter_mysql_net
+      - authcenter_redis_net
+      - authcenter_postgresql_net
+      - authcenter_valkey_net
+      - authcenter_mongodb_net
+
+  yacht:
+    image: selfhostedpro/yacht:latest
+    container_name: yacht
+    restart: always
+    ports:
+      - "8001:8000"   # وب UI Yacht
+    volumes:
+      - authcenter_yacht_data:/config
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - authcenter_elk_net
+      - authcenter_mysql_net
+      - authcenter_redis_net
+      - authcenter_postgresql_net
+      - authcenter_valkey_net
+      - authcenter_mongodb_net
+
+  rancher:
+    image: rancher/rancher:latest
+    container_name: rancher
+    restart: always
+    ports:
+      - "8081:80"    # وب UI Rancher
+      - "8443:443"   # HTTPS UI
+    volumes:
+      - authcenter_rancher_data:/var/lib/rancher
+    networks:
+      - authcenter_elk_net
+      - authcenter_mysql_net
+      - authcenter_redis_net
+      - authcenter_postgresql_net
+      - authcenter_valkey_net
+      - authcenter_mongodb_net
+
+  redisinsight:
+    image: redislabs/redisinsight:latest
+    container_name: redisinsight
+    restart: always
+    ports:
+      - "8002:8001"   # وب UI RedisInsight
+    volumes:
+      - authcenter_redisinsight_data:/db
+    networks:
+      - authcenter_redis_net
+
+  mongo-express:
+    image: mongo-express:latest
+    container_name: mongo_express
+    restart: always
+    ports:
+      - "8081:8081"  # وب UI Mongo Express
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: user
+      ME_CONFIG_MONGODB_ADMINPASSWORD: pass
+      ME_CONFIG_MONGODB_SERVER: authcenter_mongodb
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: admin123
+    networks:
+      - authcenter_mongodb_net
+    depends_on:
+      - mongodb
+
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000"   # MinIO API
+      - "9001:9001"   # MinIO Console UI
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+    volumes:
+      - authcenter_minio_data:/data
+    command: server /data --console-address ":9001"
+    networks:
+      - authcenter_minio_net
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:21.1.1
+    container_name: keycloak
+    restart: unless-stopped
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin123
+    command: start-dev
+    ports:
+      - "8082:8080"   # وب UI Keycloak
+    volumes:
+      - authcenter_keycloak_data:/opt/keycloak/data
+    networks:
+      - authcenter_keycloak_net
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.46
+    container_name: jaeger
+    restart: unless-stopped
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "6831:6831/udp"  # UDP Thrift compact
+      - "6832:6832/udp"  # UDP Thrift binary
+      - "5778:5778"      # Sampling strategies
+      - "14250:14250"    # gRPC
+      - "14268:14268"    # HTTP collector
+      - "9411:9411"      # Zipkin compatible endpoint
+    networks:
+      - authcenter_monitoring_net
+  
+  otel-collector:
+    image: otel/opentelemetry-collector:latest
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel/config/otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "4318:4318"   # OTLP HTTP
+      - "4317:4317"   # OTLP gRPC
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - authcenter_prometheus_data:/prometheus
+    networks:
+      - authcenter_monitoring_net
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - authcenter_grafana_data:/var/lib/grafana
+    networks:
+      - authcenter_monitoring_net
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  cadvisor:
+    image: gcr.io/google-containers/cadvisor:latest
+    container_name: cadvisor
+    ports:
+      - "8085:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    networks:
+      - authcenter_monitoring_net
+    restart: unless-stopped
+
+  restic:
+    image: restic/restic:latest
+    container_name: restic-backup
+    environment:
+      - RESTIC_REPOSITORY=/backups
+      - RESTIC_PASSWORD=super-secret-password
+      # مثلا برای بکاپ روی S3 میشه:
+      # - RESTIC_REPOSITORY=s3:s3.amazonaws.com/mybucket
+      # - AWS_ACCESS_KEY_ID=xxxx
+      # - AWS_SECRET_ACCESS_KEY=yyyy
+    volumes:
+      - /data:/data:ro        # دیتا فقط خواندنی
+      - ./backups:/backups    # مقصد بکاپ (local یا mount شده)
+    command: backup /data
+    restart: "no"
+
+  kopia:
+    image: kopia/kopia:latest
+    container_name: kopia-server
+    ports:
+      - "51515:51515"   # Web UI
+    environment:
+      - USER=kopia
+      - PASSWORD=super-secret-pass
+      - KOPIA_PASSWORD=my-repo-password
+    volumes:
+      - ./config:/app/config
+      - ./cache:/app/cache
+      - ./logs:/app/logs
+      - /data:/data:ro        # دیتای اصلی برای بکاپ
+      - ./backups:/backups    # ریپازیتوری local یا mount
+    command: server start --insecure --disable-csrf --address=0.0.0.0:51515
+    restart: unless-stopped
+
+  gitlab:
+      build:
+        context: ./gitlab
+        dockerfile: Dockerfile
+      container_name: gitlab
+      restart: unless-stopped
+      hostname: gitlab.local
+      environment:
+        GITLAB_OMNIBUS_CONFIG: |
+          external_url 'http://localhost:8080'
+          gitlab_rails['gitlab_shell_ssh_port'] = 2224
+      ports:
+        - "8080:80"     # Web UI
+        - "443:443"     # HTTPS (اختیاری)
+        - "2224:22"     # SSH Git
+      volumes:
+        - gitlab-config:/etc/gitlab
+        - gitlab-logs:/var/log/gitlab
+        - gitlab-data:/var/opt/gitlab
+      networks:
+        - gitlab_net
+
+  gitlab-runner:
+      build:
+        context: ./gitlab-runner
+        dockerfile: Dockerfile
+      container_name: gitlab-runner
+      restart: unless-stopped
+      volumes:
+        - /var/run/docker.sock:/var/run/docker.sock
+        - gitlab-runner-config:/etc/gitlab-runner
+      networks:
+        - gitlab_net
+      depends_on:
+        - gitlab
+
+  gitea:
+    image: gitea/gitea:latest
+    container_name: gitea
+    restart: unless-stopped
+    environment:
+      USER_UID: 1000
+      USER_GID: 1000
+      DB_TYPE: sqlite3
+      # اگر میخوای PostgreSQL یا MySQL استفاده کنی، می‌تونی تنظیم کنی
+      # DB_TYPE: postgres
+      # DB_HOST: db:5432
+      # DB_NAME: gitea
+      # DB_USER: gitea
+      # DB_PASSWD: secret
+    ports:
+      - "3000:3000"   # Web UI
+      - "2225:22"     # SSH Git
+    volumes:
+      - gitea-data:/data
+    networks:
+      - gitea_net
+
+  traefik:
+    image: traefik:v2.15
+    container_name: traefik
+    restart: unless-stopped
+    command:
+      - "--api.insecure=true"                  # Traefik dashboard روی :8080
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"  # Traefik Dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - proxy_net
+
+  ceph-mon:
+    image: ceph/ceph:latest
+    container_name: ceph-mon
+    environment:
+      - MON_IP=127.0.0.1
+      - CEPH_PUBLIC_NETWORK=0.0.0.0/0
+    ports:
+      - "6789:6789" # Ceph MON
+    volumes:
+      - ceph-mon-data:/var/lib/ceph/mon/ceph-mon
+    restart: unless-stopped
+    networks:
+      - ceph_net
+
+  ceph-mgr:
+    image: ceph/ceph:latest
+    container_name: ceph-mgr
+    depends_on:
+      - ceph-mon
+    environment:
+      - CEPH_MGR_NAME=mgr
+    ports:
+      - "7000:7000" # Dashboard
+    volumes:
+      - ceph-mgr-data:/var/lib/ceph/mgr/mgr
+    restart: unless-stopped
+    networks:
+      - ceph_net
+
+  ceph-osd:
+    image: ceph/ceph:latest
+    container_name: ceph-osd
+    depends_on:
+      - ceph-mon
+    environment:
+      - OSD_TYPE=directory
+      - OSD_DIRECTORY=/var/lib/ceph/osd/ceph-0
+    volumes:
+      - ceph-osd-data:/var/lib/ceph/osd/ceph-0
+    restart: unless-stopped
+    networks:
+      - ceph_net
+
+  longhorn-manager:
+      image: longhornio/longhorn-manager:latest
+      container_name: longhorn-manager
+      environment:
+        - NODE_NAME=longhorn-node
+      volumes:
+        - longhorn-manager-data:/var/lib/longhorn
+        - /var/run/docker.sock:/var/run/docker.sock
+      networks:
+        - longhorn_net
+      restart: unless-stopped
+
+  longhorn-engine:
+      image: longhornio/longhorn-engine:latest
+      container_name: longhorn-engine
+      environment:
+        - ENGINE_NAME=longhorn
+      volumes:
+        - longhorn-engine-data:/var/lib/longhorn
+      networks:
+        - longhorn_net
+      restart: unless-stopped
+
+  wordpress:
+    image: wordpress:latest
+    container_name: wordpress
+    restart: unless-stopped
+    ports:
+      - "8082:80"   # وب UI WordPress
+    environment:
+      WORDPRESS_DB_HOST: authcenter_mysql:3306
+      WORDPRESS_DB_USER: root
+      WORDPRESS_DB_PASSWORD: 987654321
+      WORDPRESS_DB_NAME: wordpress_db
+    volumes:
+      - wordpress_data:/var/www/html
+    networks:
+      - authcenter_mysql_net
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  nextcloud:
+    image: nextcloud:latest
+    container_name: nextcloud
+    restart: unless-stopped
+    ports:
+      - "8083:80"   # وب UI Nextcloud
+    environment:
+      MYSQL_HOST: authcenter_mysql
+      MYSQL_DATABASE: nextcloud_db
+      MYSQL_USER: root
+      MYSQL_PASSWORD: 987654321
+    volumes:
+      - nextcloud_data:/var/www/html
+      - nextcloud_files:/var/www/html/data
+    networks:
+      - authcenter_mysql_net
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  
+
+volumes:
+  authcenter_mysql_data:
+  authcenter_postgresql_data:
+  authcenter_redis_data:
+  authcenter_es_data:
+  authcenter_portainer_data:
+  authcenter_yacht_data:
+  authcenter_redisinsight_data:
+  authcenter_rancher_data:
+  authcenter_minio_data:
+  authcenter_keycloak_data:
+  authcenter_prometheus_data:
+  authcenter_grafana_data:
+  authcenter_rabbitmq_data:
+  authcenter_kafka_data:
+  authcenter_zookeeper_data:
+  zookeeper_data:
+  kafka_data:
+  gitlab-config:
+  gitlab-logs:
+  gitlab-data:
+  gitlab-runner-config:
+  gitea-data:
+  ceph-mon-data:
+  ceph-mgr-data:
+  ceph-osd-data:
+  longhorn-manager-data:
+  longhorn-engine-data:
+  wordpress_data:
+  nextcloud_data:
+  nextcloud_files:
+  
+networks:
+  authcenter_mysql_net:
+    driver: bridge
+    external: true
+  authcenter_postgresql_net:
+    driver: bridge
+    external: true
+  authcenter_mongodb_net:
+    driver: bridge
+    external: true
+  authcenter_redis_net:
+    driver: bridge
+    external: true
+  authcenter_valkey_net:
+    driver: bridge
+    external: true
+  authcenter_memcached_net:
+    driver: bridge
+    external: true
+  authcenter_mailpit_net:
+    driver: bridge
+    external: true
+  authcenter_elk_net:
+    driver: bridge
+    external: true
+  authcenter_minio_net:
+    driver: bridge
+    external: true
+  authcenter_keycloak_net:
+    driver: bridge
+    external: true
+  authcenter_monitoring_net:
+    driver: bridge
+    external: true
+  authcenter_kafka_net:
+    driver: bridge
+  gitlab_net:
+    driver: bridge
+  gitea_net:
+    driver: bridge
+  proxy_net:
+    driver: bridge
+  ceph_net:
+    driver: bridge
+  longhorn_net:
+    driver: bridge

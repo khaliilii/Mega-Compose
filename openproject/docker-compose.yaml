@@ -1,0 +1,28 @@
+version: "3.9"
+
+services:
+  openproject:
+    image: openproject/community:latest
+    container_name: openproject
+    restart: unless-stopped
+    ports:
+      - "8083:8080"   # Web UI
+    environment:
+      - SECRET_KEY_BASE=your-random-secret
+      - DATABASE_URL=postgres://openproject:password@db/openproject
+    depends_on:
+      - db
+
+  db:
+    image: postgres:15
+    container_name: openproject_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: openproject
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: openproject
+    volumes:
+      - openproject_pgdata:/var/lib/postgresql/data
+
+volumes:
+  openproject_pgdata:
