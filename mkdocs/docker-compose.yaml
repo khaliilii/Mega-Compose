@@ -1,0 +1,13 @@
+version: "3.8"
+
+services:
+  mkdocs:
+    build:
+      context: ./mkdocs
+      dockerfile: Dockerfile
+    container_name: mkdocs_server
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./mkdocs-project:/docs
+    restart: unless-stopped

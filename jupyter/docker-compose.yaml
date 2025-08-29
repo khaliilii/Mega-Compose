@@ -1,0 +1,13 @@
+version: "3.8"
+
+services:
+  jupyter:
+    build:
+      context: ./jupyter
+      dockerfile: Dockerfile
+    container_name: jupyter_notebook
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./notebooks:/workspace
+    restart: unless-stopped

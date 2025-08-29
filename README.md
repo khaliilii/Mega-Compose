@@ -35,6 +35,7 @@ Perfect for testing, learning, and building a complete **DevOps Lab** on Docker.
 * Go App (goApp)
 * php-nginx
 * php-apache
+* jupyter
 
 ### 📊 Monitoring & Observability
 
@@ -91,6 +92,7 @@ Perfect for testing, learning, and building a complete **DevOps Lab** on Docker.
 * WordPress
 * OpenProject
 * Wiki.js
+* mkdocs
 
 ### 🔒 Networking & Proxy
 
