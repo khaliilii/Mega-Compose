@@ -36,3 +36,41 @@ EXPOSE 3000
 USER wikijs
 
 CMD ["node", "server"]
+# Stage 1 - Build
+FROM node:18-alpine AS build
+
+# Set working directory
+WORKDIR /app
+
+# Clone Wiki.js source
+RUN apk add --no-cache git \
+    && git clone https://github.com/Requarks/wiki.git . \
+    && npm install --production
+
+# Stage 2 - Runtime
+FROM node:18-alpine
+
+# Add user for security
+RUN addgroup -S wikijs && adduser -S wikijs -G wikijs
+
+WORKDIR /app
+
+# Copy build from previous stage
+COPY --from=build /app /app
+
+# Environment variables (can be overridden in docker-compose)
+ENV DB_TYPE=postgres
+ENV DB_HOST=wiki_db
+ENV DB_PORT=5432
+ENV DB_USER=wikijs
+ENV DB_PASS=wikijs_pass
+ENV DB_NAME=wikijs
+ENV PORT=3000
+
+# Expose Wiki.js port
+EXPOSE 3000
+
+# Run as non-root user
+USER wikijs
+
+CMD ["node", "server"]
