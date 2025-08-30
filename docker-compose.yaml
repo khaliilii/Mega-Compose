@@ -192,7 +192,7 @@ services:
     container_name: memcached
     ports:
       - "11211:11211"
-    command: memcached -m 128 -vv   # اختیاری: محدودیت RAM و لاگ
+    command: memcached -m 128 -vv   # limitation ram log
     networks:
       - authcenter_memcached_net
   phpmyadmin:
@@ -398,7 +398,7 @@ services:
     container_name: yacht
     restart: always
     ports:
-      - "8001:8000"   # وب UI Yacht
+      - "8001:8000"   # web UI Yacht
     volumes:
       - authcenter_yacht_data:/config
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -415,7 +415,7 @@ services:
     container_name: rancher
     restart: always
     ports:
-      - "8081:80"    # وب UI Rancher
+      - "8081:80"    # web UI Rancher
       - "8443:443"   # HTTPS UI
     volumes:
       - authcenter_rancher_data:/var/lib/rancher
@@ -432,7 +432,7 @@ services:
     container_name: redisinsight
     restart: always
     ports:
-      - "8002:8001"   # وب UI RedisInsight
+      - "8002:8001"   # web UI RedisInsight
     volumes:
       - authcenter_redisinsight_data:/db
     networks:
@@ -443,7 +443,7 @@ services:
     container_name: mongo_express
     restart: always
     ports:
-      - "8081:8081"  # وب UI Mongo Express
+      - "8081:8081"  # web UI Mongo Express
     environment:
       ME_CONFIG_MONGODB_ADMINUSERNAME: user
       ME_CONFIG_MONGODB_ADMINPASSWORD: pass
@@ -480,7 +480,7 @@ services:
       KEYCLOAK_ADMIN_PASSWORD: admin123
     command: start-dev
     ports:
-      - "8082:8080"   # وب UI Keycloak
+      - "8082:8080"   # web UI Keycloak
     volumes:
       - authcenter_keycloak_data:/opt/keycloak/data
     networks:
@@ -734,7 +734,7 @@ services:
     container_name: wordpress
     restart: unless-stopped
     ports:
-      - "8082:80"   # وب UI WordPress
+      - "8082:80"   # web UI WordPress
     environment:
       WORDPRESS_DB_HOST: authcenter_mysql:3306
       WORDPRESS_DB_USER: root
