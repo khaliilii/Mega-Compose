@@ -1,9 +1,11 @@
-# ایمیج رسمی cAdvisor
-FROM gcr.io/google-containers/cadvisor:latest
+# Base image: official cAdvisor
+FROM gcr.io/cadvisor/cadvisor:latest
 
-# حتما volume های مورد نیاز برای خواندن metrics کانتینرها رو mount کن
-VOLUME ["/rootfs", "/var/run", "/sys", "/var/lib/docker"]
+LABEL maintainer="Your Name <you@example.com>"
+LABEL description="cAdvisor for monitoring Docker containers"
 
+# Expose default cAdvisor port
 EXPOSE 8080
 
-CMD ["/usr/bin/cadvisor", "-logtostderr"]
+# Default command
+CMD ["/usr/bin/cadvisor", "-port=8080", "-docker_only"]

@@ -1,11 +1,11 @@
-# Dockerfile برای Keycloak
+# Base image: Keycloak 21.1.1
 FROM quay.io/keycloak/keycloak:21.1.1
 
 LABEL maintainer="Your Name <you@example.com>"
 LABEL description="Keycloak IAM Server"
 
-# Volume برای ذخیره داده‌ها
+# Volume for persistent data storage
 VOLUME ["/opt/keycloak/data"]
 
-# فرمان اجرا (به صورت development mode)
+# Default command (development mode)
 CMD ["start-dev"]

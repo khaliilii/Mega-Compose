@@ -1,0 +1,15 @@
+version: "3.9"
+
+services:
+  gitlab-runner:
+    image: gitlab/gitlab-runner:latest
+    container_name: gitlab_runner
+    restart: unless-stopped
+    volumes:
+      - gitlab-runner-config:/etc/gitlab-runner
+      - /var/run/docker.sock:/var/run/docker.sock  # Required for Docker executor
+    environment:
+      - TZ=UTC  # optional: set timezone
+
+volumes:
+  gitlab-runner-config:

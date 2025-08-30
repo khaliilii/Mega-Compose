@@ -1,23 +1,23 @@
 FROM nginx:1.9
 
-LABEL MAINTAINER="Mohsen khalili <khalili.mohsen.mk@gmail.com>"
+LABEL MAINTAINER="Mohsen Khalili <khalili.mohsen.mk@gmail.com>"
 
-# حذف محتوای پیش‌فرض nginx
+# Remove default Nginx content
 RUN rm -rf /usr/share/nginx/html/*
 
-# کپی فایل‌های تنظیمات
+# Copy configuration files
 COPY configs/nginx.conf /etc/nginx/nginx.conf
 COPY configs/default.conf /etc/nginx/conf.d/default.conf
 
-# کپی گواهینامه‌ها و کلیدها
+# Copy certificates and keys
 COPY certs/productionexample.crt /etc/ssl/certs/productionexample.crt
 COPY certs/productionexample.key /etc/ssl/private/productionexample.key
 COPY certs/dhparam.pem /etc/ssl/private/dhparam.pem
 
-# کپی اسکریپت entrypoint
+# Copy entrypoint script
 COPY docker-entrypoint /docker-entrypoint
 RUN chmod +x /docker-entrypoint
 
-# ست کردن entrypoint و فرمان پیش‌فرض
+# Set entrypoint and default command
 ENTRYPOINT ["/docker-entrypoint"]
 CMD ["nginx", "-g", "daemon off;"]

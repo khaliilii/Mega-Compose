@@ -1,8 +1,8 @@
-# Dockerfile برای Gitea
+# Base image: Gitea latest
 FROM gitea/gitea:latest
 
-# expose پورت‌ها
+# Expose HTTP and SSH ports
 EXPOSE 3000 22
 
-# volumes (اختیاری در Dockerfile، اما بهتر در docker-compose)
+# Volume for persistent data (better defined in docker-compose)
 VOLUME ["/data"]

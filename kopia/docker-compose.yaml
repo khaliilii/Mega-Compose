@@ -1,0 +1,17 @@
+version: "3.9"
+
+services:
+  kopia:
+    build:
+      context: ./kopia
+      dockerfile: Dockerfile
+    image: custom-kopia:latest
+    container_name: kopia
+    restart: unless-stopped
+    ports:
+      - "51515:51515"  # REST API
+    volumes:
+      - kopia_data:/data
+
+volumes:
+  kopia_data:

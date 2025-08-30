@@ -1,22 +1,12 @@
-# استفاده از آلباین برای سبک بودن
-FROM alpine:3.20
+FROM axllent/mailpit:latest
 
-LABEL maintainer="Your Name <your@email.com>"
-LABEL description="Mailpit Docker Image"
+LABEL maintainer="Your Name <you@example.com>"
+LABEL description="Custom Mailpit container for local email testing"
 
-# نصب ابزارهای ضروری
-RUN apk add --no-cache curl ca-certificates tzdata
-
-# دانلود آخرین نسخه Mailpit
-ENV MAILPIT_VERSION=v1.22.1
-
-RUN curl -L -o /usr/local/bin/mailpit \
-    https://github.com/axllent/mailpit/releases/download/${MAILPIT_VERSION}/mailpit-linux-amd64 \
-    && chmod +x /usr/local/bin/mailpit
-
-# پورت‌های مورد نیاز
+# Expose ports:
+# 1025 -> SMTP
+# 8025 -> Web UI
 EXPOSE 1025 8025
 
-# اجرای سرویس
-ENTRYPOINT ["mailpit"]
-CMD ["--listen=0.0.0.0:1025", "--ui-bind=0.0.0.0:8025"]
+# Default command
+CMD ["mailpit", "--smtp", "0.0.0.0:1025", "--ui", "0.0.0.0:8025"]

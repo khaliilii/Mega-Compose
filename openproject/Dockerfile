@@ -4,12 +4,12 @@ FROM openproject/community:latest
 # Set maintainer
 LABEL maintainer="yourname@example.com"
 
-# اگر بخوای میتونی ENV اضافه کنی
+# Optional environment variables
 ENV SECRET_KEY_BASE=your-random-secret
 ENV DATABASE_URL=postgres://openproject:password@db/openproject
 
-# پورت پیشفرض OpenProject
+# Default OpenProject port
 EXPOSE 8080
 
-# کانتینر به صورت پیشفرض openproject رو اجرا میکنه
+# Default command to run OpenProject
 CMD ["openproject", "run"]

@@ -46,7 +46,7 @@ services:
       ZBX_SERVER_HOST: zabbix-server
       PHP_TZ: Europe/Berlin
     ports:
-      - "8083:8080"  # وب UI Zabbix
+      - "8083:8080"  # Web UI Zabbix
     networks:
       - authcenter_zabbix_net
 

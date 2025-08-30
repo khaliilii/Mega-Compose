@@ -1,0 +1,15 @@
+version: "3.9"
+
+services:
+  restic:
+    image: restic/restic:latest
+    container_name: restic
+    restart: unless-stopped
+    volumes:
+      - ./data:/data        # Folder to backup
+      - ./restic-repo:/repo # Restic repository
+    environment:
+      RESTIC_PASSWORD: mypassword
+    command: >
+      sh -c "restic init --repo /repo && 
+             restic backup /data --repo /repo"

@@ -1,0 +1,21 @@
+version: "3.9"
+
+services:
+  keycloak:
+    build:
+      context: ./keycloak   # folder containing your Dockerfile
+      dockerfile: Dockerfile
+    image: custom-keycloak:latest
+    container_name: keycloak
+    restart: unless-stopped
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin123
+    ports:
+      - "8080:8080"   # HTTP
+      - "8443:8443"   # HTTPS
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+
+volumes:
+  keycloak_data:

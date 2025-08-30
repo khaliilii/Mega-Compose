@@ -1,21 +1,10 @@
-# پایه: Alpine خیلی سبک
-FROM alpine:latest
+FROM memcached:latest
 
-# نصب Memcached و ابزار لازم
-RUN apk add --no-cache memcached su-exec
+LABEL maintainer="Your Name <you@example.com>"
+LABEL description="Custom Memcached container for caching"
 
-# ایجاد یوزر امن
-RUN adduser -D -g '' memcached
-
-# باز کردن پورت پیش‌فرض
+# Expose default Memcached port
 EXPOSE 11211
 
-# اجرای memcached با یوزر امن
-USER memcached
-
-# دستور پیش‌فرض
-CMD ["memcached", "-u", "memcached", "-m", "64", "-vv"]
-
-# docker build -t my-memcached .
-
-# docker run -d --name memcached -p 11211:11211 my-memcached
+# Run Memcached with custom options (example: 64MB memory, verbose logging)
+CMD ["memcached", "-m", "64", "-vv"]

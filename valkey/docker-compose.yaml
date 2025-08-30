@@ -1,0 +1,16 @@
+version: "3.9"
+
+services:
+  valkey:
+    image: valkey/valkey:latest
+    container_name: valkey
+    ports:
+      - "6379:6379"
+    environment:
+      VALKEY_DATA_DIR: /data
+    volumes:
+      - valkey-data:/data
+    restart: unless-stopped
+
+volumes:
+  valkey-data:

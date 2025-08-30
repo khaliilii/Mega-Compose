@@ -1,0 +1,17 @@
+version: "3.9"
+
+services:
+  phpmyadmin:
+    build:
+      context: ./phpmyadmin  # Path to Dockerfile
+      dockerfile: Dockerfile
+    container_name: phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "8081:80"  # Map host port 8081 to container port 80
+    environment:
+      PMA_HOST: mysql   # Name of MySQL service in your compose
+      PMA_PORT: 3306
+      PMA_ARBITRARY: 1
+    depends_on:
+      - mysql

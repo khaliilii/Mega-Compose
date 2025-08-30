@@ -1,0 +1,21 @@
+version: "3.9"
+
+services:
+  nginx:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./configs:/etc/nginx/conf.d:ro
+      - ./certs:/etc/ssl:ro
+    restart: unless-stopped
+    networks:
+      - webnet
+
+networks:
+  webnet:
+    driver: bridge

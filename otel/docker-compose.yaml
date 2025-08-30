@@ -1,0 +1,15 @@
+version: "3.9"
+
+services:
+  otel-collector:
+    build:
+      context: ./otel-collector
+      dockerfile: Dockerfile
+    container_name: otel-collector
+    restart: unless-stopped
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+      - "55681:55681" # OpenCensus gRPC
+    volumes:
+      - ./config/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro

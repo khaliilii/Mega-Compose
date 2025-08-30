@@ -5,7 +5,7 @@ FROM requarks/wiki:2
 WORKDIR /wiki
 
 # Copy custom configuration (if you have one)
-# مثلا می‌تونی config.yml سفارشی داشته باشی
+# Custom config file copy
 COPY config.yml /wiki/config.yml
 
 # Copy custom branding / themes if needed

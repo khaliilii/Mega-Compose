@@ -1,11 +1,12 @@
-# استفاده از OpenTelemetry Collector Contrib (شامل پلاگین‌های اضافی)
+# Use OpenTelemetry Collector Contrib (includes extra plugins)
 FROM otel/opentelemetry-collector-contrib:latest
 
+# Maintainer info
 LABEL maintainer="Your Name <you@example.com>"
 LABEL description="Custom OpenTelemetry Collector with predefined config"
 
-# کپی فایل کانفیگ
+# Copy custom configuration file
 COPY ./config/otel-collector-config.yaml /etc/otel-collector-config.yaml
 
-# فرمان اجرا
+# Command to run the collector
 CMD ["--config=/etc/otel-collector-config.yaml"]

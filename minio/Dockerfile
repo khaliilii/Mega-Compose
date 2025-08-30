@@ -1,11 +1,11 @@
-# Dockerfile برای MinIO
 FROM minio/minio:latest
 
 LABEL maintainer="Your Name <you@example.com>"
-LABEL description="MinIO Object Storage"
+LABEL description="Custom MinIO container for object storage"
 
-# مسیر داده‌ها
-VOLUME ["/data"]
+# Expose MinIO ports
+EXPOSE 9000
+EXPOSE 9001
 
-# فرمان اجرا
-CMD ["server", "/data"]
+# Default command (server mode)
+CMD ["server", "/data", "--console-address", ":9001"]

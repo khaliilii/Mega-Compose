@@ -1,8 +1,8 @@
-# Dockerfile برای GitLab Runner
+# Base image: GitLab Runner
 FROM gitlab/gitlab-runner:latest
 
-# اضافه کردن دستورات سفارشی (اختیاری)
-# مثلاً register خودکار runner با GitLab
+# Optional: add custom commands
+# For example, auto-register runner with GitLab
 # RUN gitlab-runner register --non-interactive \
 #   --url "http://gitlab.local" \
 #   --registration-token "TOKEN" \
@@ -13,5 +13,5 @@ FROM gitlab/gitlab-runner:latest
 #   --run-untagged="true" \
 #   --locked="false"
 
-# expose پورت اختیاری
+# Optional: expose port
 EXPOSE 8093

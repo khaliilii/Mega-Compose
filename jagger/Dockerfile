@@ -1,11 +1,11 @@
-# Dockerfile برای Jaeger
+# Base image: Jaeger all-in-one 1.46
 FROM jaegertracing/all-in-one:1.46
 
-LABEL maintainer="Your Name <you@example.com>"
+LABEL maintainer="Your Name <your@example.com>"
 LABEL description="Jaeger All-in-One for distributed tracing"
 
-# Volume برای داده‌ها (اختیاری)
+# Optional volume for persistent data
 VOLUME ["/jaeger"]
 
-# فرمان پیش‌فرض تصویر رسمی
+# Default command (expose Zipkin HTTP port 9411)
 CMD ["--collector.zipkin.http-port=9411"]

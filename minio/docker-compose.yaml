@@ -1,0 +1,21 @@
+version: "3.9"
+
+services:
+  minio:
+    build:
+      context: ./minio
+      dockerfile: Dockerfile
+    image: custom-minio:latest
+    container_name: my_minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # Web console
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+    volumes:
+      - minio_data:/data
+
+volumes:
+  minio_data:
