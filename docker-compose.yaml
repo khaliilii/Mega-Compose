@@ -298,7 +298,7 @@ services:
     networks:
       - mailpit_net
     volumes:
-      - ./mailpit/data:/data  # اگر بخوای دیتای ایمیل‌ها رو نگه داری
+      - ./mailpit/data:/data  # email data
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
@@ -559,13 +559,13 @@ services:
     environment:
       - RESTIC_REPOSITORY=/backups
       - RESTIC_PASSWORD=super-secret-password
-      # مثلا برای بکاپ روی S3 میشه:
+      # s3 backup config:
       # - RESTIC_REPOSITORY=s3:s3.amazonaws.com/mybucket
       # - AWS_ACCESS_KEY_ID=xxxx
       # - AWS_SECRET_ACCESS_KEY=yyyy
     volumes:
-      - /data:/data:ro        # دیتا فقط خواندنی
-      - ./backups:/backups    # مقصد بکاپ (local یا mount شده)
+      - /data:/data:ro        # read only data
+      - ./backups:/backups    # backup local dir or mount dev
     command: backup /data
     restart: "no"
 
@@ -582,8 +582,8 @@ services:
       - ./config:/app/config
       - ./cache:/app/cache
       - ./logs:/app/logs
-      - /data:/data:ro        # دیتای اصلی برای بکاپ
-      - ./backups:/backups    # ریپازیتوری local یا mount
+      - /data:/data:ro        # main backup data read only
+      - ./backups:/backups    # moubted / local backup repository
     command: server start --insecure --disable-csrf --address=0.0.0.0:51515
     restart: unless-stopped
 
@@ -600,7 +600,7 @@ services:
           gitlab_rails['gitlab_shell_ssh_port'] = 2224
       ports:
         - "8080:80"     # Web UI
-        - "443:443"     # HTTPS (اختیاری)
+        - "443:443"     # HTTPS 
         - "2224:22"     # SSH Git
       volumes:
         - gitlab-config:/etc/gitlab
@@ -631,7 +631,7 @@ services:
       USER_UID: 1000
       USER_GID: 1000
       DB_TYPE: sqlite3
-      # اگر میخوای PostgreSQL یا MySQL استفاده کنی، می‌تونی تنظیم کنی
+      # database postgres/mysql config:
       # DB_TYPE: postgres
       # DB_HOST: db:5432
       # DB_NAME: gitea
@@ -650,7 +650,7 @@ services:
     container_name: traefik
     restart: unless-stopped
     command:
-      - "--api.insecure=true"                  # Traefik dashboard روی :8080
+      - "--api.insecure=true"                  # Traefik dashboard port :8080
       - "--providers.docker=true"
       - "--entrypoints.web.address=:80"
       - "--entrypoints.websecure.address=:443"
@@ -753,7 +753,7 @@ services:
     container_name: nextcloud
     restart: unless-stopped
     ports:
-      - "8083:80"   # وب UI Nextcloud
+      - "8083:80"   # web UI Nextcloud port
     environment:
       MYSQL_HOST: authcenter_mysql
       MYSQL_DATABASE: nextcloud_db

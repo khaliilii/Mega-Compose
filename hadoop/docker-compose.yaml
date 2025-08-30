@@ -1,0 +1,85 @@
+version: "3.9"
+
+services:
+  namenode:
+    image: bde2020/hadoop-namenode:3.2.1-hadoop3.2.1-java8
+    container_name: hadoop-namenode
+    environment:
+      - CLUSTER_NAME=hadoop-cluster
+    ports:
+      - "9870:9870"   # Web UI
+      - "9000:9000"   # HDFS Namenode
+    volumes:
+      - namenode-data:/hadoop/dfs/name
+    networks:
+      - hadoop-net
+
+  datanode:
+    image: bde2020/hadoop-datanode:3.2.1-hadoop3.2.1-java8
+    container_name: hadoop-datanode
+    environment:
+      - NAMENODE_HOST=namenode
+    volumes:
+      - datanode-data:/hadoop/dfs/data
+    depends_on:
+      - namenode
+    networks:
+      - hadoop-net
+
+  resourcemanager:
+    image: bde2020/hadoop-resourcemanager:3.2.1-hadoop3.2.1-java8
+    container_name: hadoop-resourcemanager
+    environment:
+      - NAMENODE_HOST=namenode
+    ports:
+      - "8088:8088"   # YARN Web UI
+    depends_on:
+      - namenode
+    networks:
+      - hadoop-net
+
+  nodemanager:
+    image: bde2020/hadoop-nodemanager:3.2.1-hadoop3.2.1-java8
+    container_name: hadoop-nodemanager
+    environment:
+      - RESOURCEMANAGER_HOST=resourcemanager
+    depends_on:
+      - resourcemanager
+    networks:
+      - hadoop-net
+
+  hive-server:
+    image: bde2020/hive:2.3.2-postgresql-metastore
+    container_name: hive-server
+    environment:
+      - HIVE_METASTORE_URI=thrift://hive-metastore:9083
+    ports:
+      - "10000:10000"  # HiveServer2
+    depends_on:
+      - namenode
+      - datanode
+      - resourcemanager
+    networks:
+      - hadoop-net
+
+  spark:
+    image: bde2020/spark-master:3.2.1-hadoop3.2
+    container_name: spark
+    environment:
+      - SPARK_MODE=master
+      - HADOOP_CONF_DIR=/etc/hadoop
+    ports:
+      - "8080:8080"  # Spark Web UI
+    depends_on:
+      - namenode
+      - datanode
+    networks:
+      - hadoop-net
+
+volumes:
+  namenode-data:
+  datanode-data:
+
+networks:
+  hadoop-net:
+    driver: bridge

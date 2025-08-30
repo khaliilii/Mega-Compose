@@ -124,7 +124,6 @@ jobs:
             set -e
             cd $DEPLOY_DIR
 
-            # ذخیره وضعیت کانتینرهای فعلی
             docker-compose ps -q > old_containers.txt
 
             echo "Pulling latest Docker images..."

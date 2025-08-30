@@ -123,16 +123,13 @@ jobs:
               local svc=$1
               echo "Deploying $svc..."
               
-              # Deploy سرویس
               if ! docker-compose up -d $svc; then
                 echo "❌ $svc failed! Rolling back..."
                 
-                # rollback سرویس و وابستگی‌ها
                 if [[ -n "${rollback_commands[$svc]}" ]]; then
                   eval "${rollback_commands[$svc]}"
                 fi
 
-                # rollback وابستگی‌ها
                 if [[ -n "${dependencies[$svc]}" ]]; then
                   for dep in ${dependencies[$svc]}; do
                     echo "Rolling back dependency $dep..."
