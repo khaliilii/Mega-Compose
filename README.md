@@ -93,6 +93,7 @@ Perfect for testing, learning, and building a complete **DevOps Lab** on Docker.
 * OpenProject
 * Wiki.js
 * mkdocs
+* airflow
 
 ### 🔒 Networking & Proxy
 
